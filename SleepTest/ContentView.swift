@@ -10,34 +10,18 @@ import HealthKit
 import HealthKitUI
 
 struct ContentView: View {
-    @State var authenticated = false
     @StateObject var manager = HealthKitManager()
     
     var body: some View {
         VStack {
-            Button("Access Health Data") {
-                // OK To read or write HealthKit data here
+            Button("Authorize Health Data Access") {
+                manager.requestAuthorization()
             }
-//            .disabled(!authenticated)
+            Button("Fetch Sleep Data") {
+                manager.fetchSleepData()
+            }
         }
         .padding()
-        .task {
-//            await manager.requestAuthorization()
-            manager.authorizeHealthKit()
-        }
-//        .healthDataAccessRequest(store: manager.healthStore!,
-//                                 shareTypes: [],
-//                                 readTypes: [HKCategoryType(.sleepAnalysis)],
-//                                 trigger: trigger) { result in
-//            
-//            switch result {
-//            case .success(_):
-//                authenticated = true
-//            case .failure(let error):
-//                // Handle the error
-//                fatalError("*** An error occurred while requesting authorization")
-//            }
-//        }
     }
 }
 
