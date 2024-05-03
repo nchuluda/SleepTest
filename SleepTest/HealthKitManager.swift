@@ -7,10 +7,13 @@
 
 import Foundation
 import HealthKit
+import UserNotifications
 
+@MainActor
 class HealthKitManager: ObservableObject {
     let healthStore = HKHealthStore()
     var healthKitAuthorized = false
+    @Published var showWakeUpAlert = false
     
     init() { }
     
@@ -27,17 +30,18 @@ class HealthKitManager: ObservableObject {
     }
     
     func fetchSleepData() {
-//        print("Called fetchSleepData()")
         if healthKitAuthorized {
             let sortDesriptor = NSSortDescriptor(key: HKSampleSortIdentifierEndDate, ascending: false)
             let query = HKSampleQuery(sampleType: HKCategoryType(.sleepAnalysis), predicate: nil, limit: 30, sortDescriptors: [sortDesriptor]) {
                 (query, samples, error) in
                 guard let samples = samples as? [HKCategorySample], error == nil else {
-                    print("Failed to fetch sleepd ata: \(error!.localizedDescription)")
+                    print("Failed to fetch sleep data: \(error!.localizedDescription)")
                     return
                 }
                 for sample in samples {
-                    print("\(self.sleepCategory(sample.value)):")
+                    if let sleepCategory = HKCategoryValueSleepAnalysis(rawValue: sample.value) {
+                        print("\(self.description(sleepCategory)):")
+                    }
                     let startDate = sample.startDate
                     let endDate = sample.endDate
                     print("Start: \(startDate), End: \(endDate)")
@@ -49,15 +53,55 @@ class HealthKitManager: ObservableObject {
         }
     }
     
-    func sleepCategory(_ value: Int) -> String {
-        switch value {
-        case 0:
-            return "In Bed"
-        case 3:
+    func startObserverQuery() {
+        if healthKitAuthorized {
+            let query = HKObserverQuery(sampleType: HKCategoryType(.sleepAnalysis), predicate: nil) { (query, completionHandler, errorOrNil) in
+                if let error = errorOrNil {
+                    // Properly handle the error.
+                    print(error)
+                    return
+                }
+                // Take whatever steps are necessary to update your app.
+                // This often involves executing other queries to access the new data.
+                
+//                print("HealthKitStore changed at \(Date())")
+
+                // NOTIFICATION
+                let content = UNMutableNotificationContent()
+                content.title = "You fell asleep!"
+                content.body = "Wake up and journal."
+                content.sound = .default
+                
+                let request = UNNotificationRequest(identifier: "timerDone", content: content, trigger: nil)
+                UNUserNotificationCenter.current().add(request, withCompletionHandler: nil)
+                
+                // ALERT
+                self.showWakeUpAlert = true
+                
+                // If you have subscribed for background updates you must call the completion handler here.
+                completionHandler()
+            }
+            self.healthStore.execute(query)
+        } else {
+            requestAuthorization()
+        }
+    }
+    
+    func description(_ sleepCategory: HKCategoryValueSleepAnalysis) -> String {
+        switch sleepCategory {
+        case .inBed:
+            return "In bed"
+        case .asleepUnspecified:
+            return "Unspecified"
+        case .asleep:
+            return "Asleep"
+        case .awake:
+            return "Awake"
+        case .asleepCore:
             return "Core"
-        case 4:
+        case .asleepDeep:
             return "Deep"
-        case 5:
+        case .asleepREM:
             return "REM"
         default:
             return "Unknown"
