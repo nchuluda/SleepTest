@@ -76,7 +76,9 @@ class HealthKitManager: ObservableObject {
                 UNUserNotificationCenter.current().add(request, withCompletionHandler: nil)
                 
                 // ALERT
-                self.showWakeUpAlert = true
+                DispatchQueue.main.async {
+                    self.showWakeUpAlert = true
+                }
                 
                 // If you have subscribed for background updates you must call the completion handler here.
                 completionHandler()
