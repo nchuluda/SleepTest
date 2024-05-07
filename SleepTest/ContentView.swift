@@ -30,6 +30,12 @@ struct ContentView: View {
             }
         }
         .padding()
+        VStack {
+            ForEach(manager.healthKitChanges, id: \.self) { change in
+                Text(change)
+            }
+        }
+        .padding(.top)
         
         .task {
             let center = UNUserNotificationCenter.current()

@@ -14,6 +14,7 @@ class HealthKitManager: ObservableObject {
     let healthStore = HKHealthStore()
     var healthKitAuthorized = false
     @Published var showWakeUpAlert = false
+    @Published var healthKitChanges: [String] = []
     
     init() { }
     
@@ -53,6 +54,31 @@ class HealthKitManager: ObservableObject {
         }
     }
     
+    
+    func fetchCurrentSleepState() {
+        if healthKitAuthorized {
+            let sortDesriptor = NSSortDescriptor(key: HKSampleSortIdentifierEndDate, ascending: false)
+            let query = HKSampleQuery(sampleType: HKCategoryType(.sleepAnalysis), predicate: nil, limit: 1, sortDescriptors: [sortDesriptor]) {
+                (query, samples, error) in
+                guard let samples = samples as? [HKCategorySample], error == nil else {
+                    print("Failed to fetch sleep data: \(error!.localizedDescription)")
+                    return
+                }
+
+                for sample in samples {
+                    if let sleepCategory = HKCategoryValueSleepAnalysis(rawValue: sample.value) {
+                        print("Current sleep state is \(self.description(sleepCategory)):")
+                        self.healthKitChanges.append("\(self.description(sleepCategory)) at \(Date().formatted())")
+                    }
+                }
+            }
+            self.healthStore.execute(query)
+        } else {
+            
+            requestAuthorization()
+        }
+    }
+    
     func startObserverQuery() {
         if healthKitAuthorized {
             let query = HKObserverQuery(sampleType: HKCategoryType(.sleepAnalysis), predicate: nil) { (query, completionHandler, errorOrNil) in
@@ -65,6 +91,9 @@ class HealthKitManager: ObservableObject {
                 // This often involves executing other queries to access the new data.
                 
 //                print("HealthKitStore changed at \(Date())")
+                
+                print("HealthKit Store changed at \(Date()).")
+                self.fetchCurrentSleepState()
 
                 // NOTIFICATION
                 let content = UNMutableNotificationContent()
